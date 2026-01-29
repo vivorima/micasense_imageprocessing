@@ -5,11 +5,35 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from mapboxgl.utils import df_to_geojson
+try:
+    from mapboxgl.utils import df_to_geojson as _df_to_geojson
+except Exception:
+    _df_to_geojson = None
 from skimage.transform import ProjectiveTransform
 
 import micasense.capture as capture
 import micasense.imageset as imageset
+
+
+def df_to_geojson(df, properties, lat='latitude', lon='longitude'):
+    if _df_to_geojson is not None:
+        return _df_to_geojson(df, properties, lat=lat, lon=lon)
+    features = []
+    for _, row in df.iterrows():
+        if pd.isna(row.get(lat)) or pd.isna(row.get(lon)):
+            continue
+        props = {prop: row[prop] for prop in properties if prop in df.columns}
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [float(row[lon]), float(row[lat])],
+                },
+                "properties": props,
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
 
 parser = argparse.ArgumentParser(
     prog='MicaSenseBatchProcessing',
